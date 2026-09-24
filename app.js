@@ -72,22 +72,27 @@ async function fetchBlockHeight() {
 }
 
 async function fetchPrice() {
-  const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-  if (!res.ok) throw new Error('Binance 价格请求失败: ' + res.status);
+  // 2026-09-24治本：原来用Binance API，在中国大陆网络环境下大概率被合规屏蔽访问
+  // （老大反馈页面数据一直卡在"加载中"，本服务器境外测试正常但老大浏览器打不开，
+  // 换成CoinGecko——不属于交易所，无地域限制，CORS支持良好）
+  const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+  if (!res.ok) throw new Error('CoinGecko 价格请求失败: ' + res.status);
   const data = await res.json();
-  return parseFloat(data.price);
+  return data.bitcoin.usd;
 }
 
 async function fetchKlines() {
-  const res = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=1000');
-  if (!res.ok) throw new Error('Binance K线请求失败: ' + res.status);
+  // 同上原因换成CoinGecko OHLC接口。免费版对days=365只返回约90根4天K线
+  // (数据粒度比原来Binance的1000根日K线粗，但换来国内也能正常打开)
+  const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=365');
+  if (!res.ok) throw new Error('CoinGecko K线请求失败: ' + res.status);
   const raw = await res.json();
   return raw.map(k => ({
     time: Math.floor(k[0] / 1000),
-    open: parseFloat(k[1]),
-    high: parseFloat(k[2]),
-    low: parseFloat(k[3]),
-    close: parseFloat(k[4]),
+    open: k[1],
+    high: k[2],
+    low: k[3],
+    close: k[4],
   }));
 }
 
